@@ -39,8 +39,8 @@ void loop() {
 void right(int time){
   digitalWrite(leftFront1 , HIGH);
   digitalWrite(leftFront2 , HIGH);
-  digitalWrite(rightFront1 , LOW);
-  digitalWrite(rightFront2 , HIGH);
+  digitalWrite(rightFront1 , HIGH);
+  digitalWrite(rightFront2 , LOW);
 
   digitalWrite(leftBack1 , HIGH);
   digitalWrite(leftBack2 , LOW);

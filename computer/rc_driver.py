@@ -183,7 +183,7 @@ class Server(object):
 
 
 if __name__ == '__main__':
-    h, p1, p2 = "192.168.1.100", 8000, 8002
+    h, p1, p2 = "192.168.0.102", 8000, 8002
 
     ts = Server(h, p1, p2)
     ts.start()

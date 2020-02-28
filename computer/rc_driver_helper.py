@@ -1,30 +1,45 @@
 __author__ = 'zhengwang'
 
-import serial
+#import serial
 import cv2
 import math
+import paho.mqtt.client as mqtt
 
 
 class RCControl(object):
 
-    def __init__(self, serial_port):
-        self.serial_port = serial.Serial(serial_port, 115200, timeout=1)
+    def on_connect(client, userdata, flags, rc):
+        client.subscribe("pod/#")
+        client.publish("pod/rpi_status", "PC is Online")
+        print("PC Passed Callback")
+
+    #def __init__(self, serial_port):
+    #    self.serial_port = serial.Serial(serial_port, 115200, timeout=1)
 
     def steer(self, prediction):
+        client = mqtt.Client()
+        client.username_pw_set(username="homehub", password="Future_home")
+        #client.on_connect = on_connect
+        #client.on_message = on_message
+
+        client.connect("192.168.0.100", 1883, 60)
+        #print("Passed Connection Setup")
+
         if prediction == 2:
-            self.serial_port.write(chr(1).encode())
-            print("Forward")
+            #self.serial_port.write(chr(1).encode())
+            client.publish("pod/car_control", "F") 
         elif prediction == 0:
-            self.serial_port.write(chr(7).encode())
-            print("Left")
+            #self.serial_port.write(chr(7).encode())
+            client.publish("pod/car_control", "L")
         elif prediction == 1:
-            self.serial_port.write(chr(6).encode())
-            print("Right")
+            #self.serial_port.write(chr(6).encode())
+            client.publish("pod/car_control", "R") 
         else:
             self.stop()
 
     def stop(self):
-        self.serial_port.write(chr(0).encode())
+        #self.serial_port.write(chr(0).encode())
+        client.publish("pod/car_control", "S") 
 
 
 class DistanceToCamera(object):

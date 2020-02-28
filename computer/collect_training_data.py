@@ -7,12 +7,18 @@ import pygame
 from pygame.locals import *
 import socket
 import time
+import paho.mqtt.client as mqtt
 import os
 
 
 class CollectTrainingData(object):
-    
-    def __init__(self, host, port, serial_port, input_size):
+
+    def on_connect(client, userdata, flags, rc):
+        client.subscribe("pod/#")
+        client.publish("pod/rpi_status", "PC is Online")
+        print("PC Passed Callback")
+
+    def __init__(self, host, port, input_size):
 
         self.server_socket = socket.socket()
         self.server_socket.bind((host, port))
@@ -22,7 +28,7 @@ class CollectTrainingData(object):
         self.connection = self.server_socket.accept()[0].makefile('rb')
 
         # connect to a seral port
-        self.ser = serial.Serial(serial_port, 115200, timeout=1)
+        #self.ser = serial.Serial(serial_port, 115200, timeout=1)
         self.send_inst = True
 
         self.input_size = input_size
@@ -36,6 +42,14 @@ class CollectTrainingData(object):
         pygame.display.set_mode((250, 250))
 
     def collect(self):
+
+        client = mqtt.Client()
+        client.username_pw_set(username="homehub", password="Future_home")
+        #client.on_connect = on_connect
+        #client.on_message = on_message
+
+        client.connect("192.168.0.100", 1883, 60)
+        print("Passed Connection Setup")
 
         saved_frame = 0
         total_frame = 0
@@ -66,7 +80,9 @@ class CollectTrainingData(object):
                     height, width = image.shape
                     roi = image[int(height/2):height, :]
 
-                    cv2.imshow('image', image)
+                    rotated_image = np.rot90(np.rot90(image))
+
+                    cv2.imshow('image', rotated_image)
 
                     # reshape the roi image into a vector
                     temp_array = roi.reshape(1, int(height/2) * width).astype(np.float32)
@@ -85,22 +101,22 @@ class CollectTrainingData(object):
                                 X = np.vstack((X, temp_array))
                                 y = np.vstack((y, self.k[1]))
                                 saved_frame += 1
-                                self.ser.write(chr(6).encode())
+                                client.publish("pod/car_control", "FR")
 
                             elif key_input[pygame.K_UP] and key_input[pygame.K_LEFT]:
                                 print("Forward Left")
                                 X = np.vstack((X, temp_array))
                                 y = np.vstack((y, self.k[0]))
                                 saved_frame += 1
-                                self.ser.write(chr(7).encode())
+                                client.publish("pod/car_control", "FL")
 
                             elif key_input[pygame.K_DOWN] and key_input[pygame.K_RIGHT]:
                                 print("Reverse Right")
-                                self.ser.write(chr(8).encode())
+                                client.publish("pod/car_control", "BR")
 
                             elif key_input[pygame.K_DOWN] and key_input[pygame.K_LEFT]:
                                 print("Reverse Left")
-                                self.ser.write(chr(9).encode())
+                                client.publish("pod/car_control", "BL")
 
                             # simple orders
                             elif key_input[pygame.K_UP]:
@@ -108,35 +124,34 @@ class CollectTrainingData(object):
                                 saved_frame += 1
                                 X = np.vstack((X, temp_array))
                                 y = np.vstack((y, self.k[2]))
-                                self.ser.write(chr(1).encode())
+                                client.publish("pod/car_control", "F") 
 
                             elif key_input[pygame.K_DOWN]:
                                 print("Reverse")
-                                self.ser.write(chr(2).encode())
+                                client.publish("pod/car_control", "B") 
 
                             elif key_input[pygame.K_RIGHT]:
                                 print("Right")
                                 X = np.vstack((X, temp_array))
                                 y = np.vstack((y, self.k[1]))
                                 saved_frame += 1
-                                self.ser.write(chr(3).encode())
+                                client.publish("pod/car_control", "R") 
 
                             elif key_input[pygame.K_LEFT]:
                                 print("Left")
                                 X = np.vstack((X, temp_array))
                                 y = np.vstack((y, self.k[0]))
                                 saved_frame += 1
-                                self.ser.write(chr(4).encode())
+                                client.publish("pod/car_control", "L") 
 
                             elif key_input[pygame.K_x] or key_input[pygame.K_q]:
                                 print("exit")
                                 self.send_inst = False
-                                self.ser.write(chr(0).encode())
-                                self.ser.close()
+                                client.publish("pod/car_control", "S") 
                                 break
 
                         elif event.type == pygame.KEYUP:
-                            self.ser.write(chr(0).encode())
+                            client.publish("pod/car_control", "S") 
 
                     if cv2.waitKey(1) & 0xFF == ord('q'):
                         break
@@ -166,15 +181,17 @@ class CollectTrainingData(object):
             self.server_socket.close()
 
 
+    #client.loop_forever()
+
 if __name__ == '__main__':
     # host, port
     h, p = "192.168.0.102", 8000
 
     # serial port
-    sp = "com7"
+    #sp = "com7"
 
     # vector size, half of the image
     s = 120 * 320
 
-    ctd = CollectTrainingData(h, p, sp, s)
+    ctd = CollectTrainingData(h, p, s)
     ctd.collect()

@@ -5,11 +5,12 @@ import socket
 import serial
 from model import NeuralNetwork
 from rc_driver_helper import RCControl
+import paho.mqtt.client as mqtt
 
 
 class RCDriverNNOnly(object):
 
-    def __init__(self, host, port, serial_port, model_path):
+    def __init__(self, host, port, model_path):
 
         self.server_socket = socket.socket()
         self.server_socket.bind((host, port))
@@ -22,9 +23,18 @@ class RCDriverNNOnly(object):
         self.nn = NeuralNetwork()
         self.nn.load_model(model_path)
 
-        self.rc_car = RCControl(serial_port)
+        self.rc_car = RCControl()
 
     def drive(self):
+
+        client = mqtt.Client()
+        client.username_pw_set(username="homehub", password="Future_home")
+        #client.on_connect = on_connect
+        #client.on_message = on_message
+
+        client.connect("192.168.0.100", 1883, 60)
+        #print("Passed Connection Setup")
+        
         stream_bytes = b' '
         try:
             # stream video frames one by one
@@ -43,7 +53,9 @@ class RCDriverNNOnly(object):
                     height, width = gray.shape
                     roi = gray[int(height/2):height, :]
 
-                    cv2.imshow('image', image)
+                    rotated_image = np.rot90(np.rot90(image))
+
+                    cv2.imshow('image', rotated_image)
                     # cv2.imshow('mlp_image', roi)
 
                     # reshape image
@@ -65,13 +77,13 @@ class RCDriverNNOnly(object):
 
 if __name__ == '__main__':
     # host, port
-    h, p = "192.168.1.100", 8000
+    h, p = "192.168.0.102", 8000
 
     # serial port
-    sp = "/dev/tty.usbmodem1421"
+    #sp = "/dev/tty.usbmodem1421"
 
     # model path
     path = "saved_model/nn_model.xml"
 
-    rc = RCDriverNNOnly(h, p, sp, path)
+    rc = RCDriverNNOnly(h, p, path)
     rc.drive()
